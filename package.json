@@ -1,0 +1,23 @@
+{
+  "name": "git-scribe",
+  "version": "0.1.0",
+  "description": "Draft concise git commit messages from staged changes",
+  "bin": {
+    "git-scribe": "./bin/git-scribe.js"
+  },
+  "scripts": {
+    "test": "node --test test/index.test.js"
+  },
+  "keywords": [
+    "git",
+    "cli",
+    "commit",
+    "llm"
+  ],
+  "author": "",
+  "license": "MIT",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=18"
+  }
+}
