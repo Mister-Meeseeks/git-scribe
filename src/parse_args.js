@@ -7,6 +7,7 @@ Options:
   --dry-run                 Print the generated commit message and exit
   --debug                   Print context metadata before prompting
   --no-body                 Request a subject-only commit message
+  -a, --all                 Include tracked unstaged changes (like git commit -a)
   -y, --yes                 Skip the approval prompt and commit immediately
   -i, --instruction <text>  Additional instruction for the model (repeatable)
   --history-depth <n>       Number of recent commit subjects to include (default ${DEFAULT_HISTORY_DEPTH})
@@ -22,6 +23,7 @@ function parseArgs(argv) {
     dryRun: false,
     debug: false,
     noBody: false,
+    commitAll: false,
     instructions: [],
     autoApprove: false,
     historyDepth: DEFAULT_HISTORY_DEPTH,
@@ -50,6 +52,11 @@ function parseArgs(argv) {
         break;
       case '--no-body':
         options.noBody = true;
+        break;
+      case '-a':
+      case '--all':
+        options.commitAll = true;
+        commitArgs.push(token);
         break;
       case '-y':
       case '--yes':
@@ -105,13 +112,21 @@ function parseArgs(argv) {
       case '--help':
         options.helpRequested = true;
         break;
-      default:
+      default: {
+        if (isCombinedShortFlag(token) && token.includes('a', 1)) {
+          options.commitAll = true;
+        }
         commitArgs.push(token);
         break;
+      }
     }
   }
 
   return { options, commitArgs };
+}
+
+function isCombinedShortFlag(token) {
+  return /^-[A-Za-z0-9]{2,}$/.test(token);
 }
 
 module.exports = {

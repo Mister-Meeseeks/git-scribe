@@ -10,6 +10,7 @@ const {
   getStagedDiff,
   getRecentCommitSubjects,
   commitWithFile,
+  getCommitAllChanges,
 } = require('./git');
 const { readGuidance } = require('./read_guidance');
 const { buildPrompt } = require('./prompt');
@@ -32,9 +33,10 @@ async function createTempMessageFile(initialMessage) {
 }
 
 function printMessagePreview(message) {
-  console.log('--- Commit message ---');
+  console.log('----- Commit message -----');
   console.log(message);
   console.log('----------------------');
+  console.log('');
 }
 
 function createInterface() {
@@ -136,6 +138,7 @@ async function main(argv = process.argv.slice(2), overrides = {}) {
     overrides.resolveLLMConfig || (({ env }) => resolveLLMConfig({ env }));
   const generateCommitMessageImpl = overrides.generateCommitMessage || generateCommitMessage;
   const createSpinnerImpl = overrides.createSpinner || ((label) => createSpinner({ text: label }));
+  const getCommitAllChangesImpl = overrides.getCommitAllChanges || getCommitAllChanges;
   const interactiveCommitImpl =
     overrides.interactiveCommit ||
     ((params) => interactiveCommit({ ...params, commitWithFileImpl }));
@@ -148,12 +151,25 @@ async function main(argv = process.argv.slice(2), overrides = {}) {
   applyEnvOverrides(options, envVars);
 
   const repoRoot = await getRepoRootImpl();
-  const stagedFiles = await getStagedFilesImpl(repoRoot);
-  if (stagedFiles.length === 0) {
-    throw new Error('No staged changes found. Stage files before running git-scribe.');
+  let stagedFiles;
+  let diffRaw;
+
+  if (options.commitAll) {
+    const commitAllSnapshot = await getCommitAllChangesImpl(repoRoot);
+    stagedFiles = commitAllSnapshot.files;
+    diffRaw = commitAllSnapshot.diff;
+  } else {
+    stagedFiles = await getStagedFilesImpl(repoRoot);
+    diffRaw = await getStagedDiffImpl(repoRoot);
   }
 
-  const diffRaw = await getStagedDiffImpl(repoRoot);
+  if (stagedFiles.length === 0) {
+    const message = options.commitAll
+      ? 'No tracked changes found. Modify tracked files or stage files before running git-scribe.'
+      : 'No staged changes found. Stage files before running git-scribe.';
+    throw new Error(message);
+  }
+
   if (!diffRaw.trim()) {
     throw new Error('Staged diff is empty.');
   }
@@ -194,6 +210,7 @@ async function main(argv = process.argv.slice(2), overrides = {}) {
       historyDepth: options.historyDepth,
       commitArgs,
       model: llmConfig.model,
+      commitAll: options.commitAll,
     });
   }
 
@@ -203,7 +220,7 @@ async function main(argv = process.argv.slice(2), overrides = {}) {
   try {
     ({ message } = await generateCommitMessageImpl({ prompt, config: llmConfig }));
   } finally {
-    spinner.stop('Draft ready.');
+    spinner.stop();
   }
 
   if (options.dryRun) {

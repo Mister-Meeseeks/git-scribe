@@ -63,6 +63,7 @@ git-scribe [options] [-- git commit args]
 - `--dry-run` – print the draft message and exit
 - `--debug` – print JSON metadata about the collected context
 - `--no-body` – request a subject-only commit message
+- `-a, --all` – include tracked unstaged changes (mirrors `git commit -a`)
 - `-y, --yes` – skip the approval prompt and commit immediately (opt-in)
 - `-i, --instruction <text>` – add extra instruction(s) for the model
 - `--history-depth <n>` – number of recent commit subjects to include (default 10)
@@ -80,7 +81,7 @@ By default, `git-scribe` includes the contents of `AGENTS.md` and `CLAUDE.md` (i
 
 ## Diff safety
 
-Only staged changes are read and sent to the model. The staged diff is truncated when it exceeds the configured character cap, and the prompt explicitly instructs the model not to invent details.
+Only staged changes are read and sent to the model. When you pass `-a/--all`, git-scribe mirrors `git commit -a` inside a temporary index so the diff still reflects exactly what would be committed. The staged diff is truncated when it exceeds the configured character cap, and the prompt explicitly instructs the model not to invent details.
 
 ## Debugging
 

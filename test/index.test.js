@@ -42,6 +42,10 @@ function createStubEnvironment() {
       start() {},
       stop() {},
     }),
+    getCommitAllChanges: async () => ({
+      files: ['src/index.js'],
+      diff: 'diff --git a/src/index.js b/src/index.js\n+test',
+    }),
   };
   return { overrides, tracker };
 }
@@ -96,4 +100,33 @@ test('--yes commits immediately using the generated message', async () => {
   assert.deepStrictEqual(commit.commitArgs, []);
   assert.strictEqual(commit.contents.trim(), 'Add tests');
   assert.ok(consoleCapture.logs.some((line) => line.includes('Commit created.')));
+});
+
+test('-a uses tracked changes snapshot and forwards the flag to git commit', async () => {
+  const { overrides, tracker } = createStubEnvironment();
+  overrides.getCommitAllChanges = async () => {
+    tracker.commitAllSnapshot = true;
+    return {
+      files: ['src/app.js'],
+      diff: 'diff --git a/src/app.js b/src/app.js\n+console.log(1);',
+    };
+  };
+  overrides.getStagedFiles = async () => {
+    throw new Error('should not read staged files when -a is used');
+  };
+  overrides.getStagedDiff = async () => {
+    throw new Error('should not read staged diff when -a is used');
+  };
+
+  const consoleCapture = captureLogs();
+  try {
+    await main(['-a', '--yes'], overrides);
+  } finally {
+    consoleCapture.restore();
+  }
+
+  assert.ok(tracker.commitAllSnapshot, 'commit-all snapshot should be used');
+  assert.match(tracker.promptInput.diff, /console\.log/);
+  assert.strictEqual(tracker.commitCalls.length, 1);
+  assert.deepStrictEqual(tracker.commitCalls[0].commitArgs, ['-a']);
 });
