@@ -46,9 +46,15 @@ function createInterface() {
   });
 }
 
-function askQuestion(rl, promptText) {
+function askQuestion(rl, promptText, { transform } = {}) {
   return new Promise((resolve) => {
-    rl.question(promptText, (answer) => resolve(answer.trim().toLowerCase()));
+    rl.question(promptText, (answer) => {
+      if (transform) {
+        resolve(transform(answer));
+        return;
+      }
+      resolve(answer.trim().toLowerCase());
+    });
   });
 }
 
@@ -57,6 +63,7 @@ async function interactiveCommit({
   commitArgs,
   initialMessage,
   editorPreference,
+  requestNewDraft,
   commitWithFileImpl = commitWithFile,
 }) {
   const { filePath, cleanup } = await createTempMessageFile(initialMessage);
@@ -67,7 +74,10 @@ async function interactiveCommit({
   try {
     while (true) {
       printMessagePreview(currentMessage);
-      const answer = await askQuestion(rl, 'Commit this message? (y = commit, n = abort, e = edit) ');
+      const answer = await askQuestion(
+        rl,
+        'Commit this message? (y = commit, n = abort, e = edit, + = more detail, - = less detail, i = instructions) ',
+      );
       if (answer === 'y') {
         await fs.writeFile(filePath, ensureTrailingNewline(currentMessage), 'utf8');
         await commitWithFileImpl(repoRoot, filePath, commitArgs);
@@ -88,7 +98,46 @@ async function interactiveCommit({
         }
         continue;
       }
-      console.log('Please answer with y, n, or e.');
+      if ((answer === '+' || answer === '-' || answer === 'i') && !requestNewDraft) {
+        console.log('Regeneration is unavailable in this context.');
+        continue;
+      }
+      if (answer === '+') {
+        try {
+          currentMessage = await requestNewDraft({ type: 'more_detail', previousMessage: currentMessage });
+        } catch (error) {
+          console.error(`Failed to regenerate commit message: ${error.message}`);
+        }
+        continue;
+      }
+      if (answer === '-') {
+        try {
+          currentMessage = await requestNewDraft({ type: 'less_detail', previousMessage: currentMessage });
+        } catch (error) {
+          console.error(`Failed to regenerate commit message: ${error.message}`);
+        }
+        continue;
+      }
+      if (answer === 'i') {
+        const extraInstruction = await askQuestion(rl, 'Enter additional instruction: ', {
+          transform: (value) => value.trim(),
+        });
+        if (!extraInstruction) {
+          console.log('Instruction cannot be empty.');
+          continue;
+        }
+        try {
+          currentMessage = await requestNewDraft({
+            type: 'custom',
+            previousMessage: currentMessage,
+            instructionText: extraInstruction,
+          });
+        } catch (error) {
+          console.error(`Failed to regenerate commit message: ${error.message}`);
+        }
+        continue;
+      }
+      console.log('Please answer with y, n, e, +, -, or i.');
     }
   } finally {
     rl.close();
@@ -186,24 +235,31 @@ async function main(argv = process.argv.slice(2), overrides = {}) {
     skipDefaultGuidance: options.skipDefaultGuidance,
   });
 
-  const prompt = buildPromptImpl({
+  const basePromptInput = {
     diff: diffForPrompt,
     stagedFiles,
     commitHistory,
-    instructions: options.instructions,
     guidanceText: guidance.text,
     noBody: options.noBody,
     diffTruncated,
     guidanceTruncated: guidance.truncated,
+  };
+
+  const draftState = {
+    instructions: [...options.instructions],
     detailLevel: options.detailLevel,
     promptNote: options.promptNote,
-  });
+    revisionHistory: [],
+  };
 
-  if (options.tracePrompt) {
-    console.log('----- Prompt sent to model -----');
-    console.log(prompt);
-    console.log('--------------------------------');
-  }
+  const buildPromptFromState = () =>
+    buildPromptImpl({
+      ...basePromptInput,
+      instructions: draftState.instructions,
+      detailLevel: draftState.detailLevel,
+      promptNote: draftState.promptNote,
+      revisionHistory: draftState.revisionHistory,
+    });
 
   const llmOverrides = {};
   if (options.model) {
@@ -215,7 +271,7 @@ async function main(argv = process.argv.slice(2), overrides = {}) {
     printDebugInfo({
       repoRoot,
       stagedFiles,
-      instructions: options.instructions,
+      instructions: draftState.instructions,
       guidanceFiles: guidance.files,
       diffTruncated,
       guidanceTruncated: guidance.truncated,
@@ -223,20 +279,60 @@ async function main(argv = process.argv.slice(2), overrides = {}) {
       commitArgs,
       model: llmConfig.model,
       commitAll: options.commitAll,
-      detailLevel: options.detailLevel,
-      promptNote: options.promptNote,
+      detailLevel: draftState.detailLevel,
+      promptNote: draftState.promptNote,
       tracePrompt: options.tracePrompt,
     });
   }
 
-  const spinner = createSpinnerImpl('Drafting commit message');
-  spinner.start();
-  let message;
-  try {
-    ({ message } = await generateCommitMessageImpl({ prompt, config: llmConfig }));
-  } finally {
-    spinner.stop();
-  }
+  const draftCommitMessage = async () => {
+    const prompt = buildPromptFromState();
+    if (options.tracePrompt) {
+      console.log('----- Prompt sent to model -----');
+      console.log(prompt);
+      console.log('--------------------------------');
+    }
+    const spinner = createSpinnerImpl('Drafting commit message');
+    spinner.start();
+    try {
+      const response = await generateCommitMessageImpl({ prompt, config: llmConfig });
+      return response.message;
+    } finally {
+      spinner.stop();
+    }
+  };
+
+  const requestNewDraft = async ({ type, previousMessage, instructionText }) => {
+    if (!previousMessage) {
+      throw new Error('Previous draft is required to request a new one.');
+    }
+    let reason;
+    if (type === 'more_detail') {
+      if (draftState.detailLevel < 5) {
+        draftState.detailLevel += 1;
+      }
+      reason = 'User rejected this draft and requested a more detailed commit message.';
+    } else if (type === 'less_detail') {
+      if (draftState.detailLevel > 1) {
+        draftState.detailLevel -= 1;
+      }
+      reason = 'User rejected this draft and requested a more succinct commit message.';
+    } else if (type === 'custom') {
+      const normalized = instructionText ? instructionText.trim() : '';
+      if (!normalized) {
+        throw new Error('Instruction text cannot be empty.');
+      }
+      draftState.instructions.push(normalized);
+      reason = `User rejected this draft and requested the commit message be revised with: ${normalized}`;
+    } else {
+      throw new Error('Unknown regeneration request.');
+    }
+    draftState.revisionHistory.push({ message: previousMessage, reason });
+    const nextDraft = await draftCommitMessage();
+    return nextDraft;
+  };
+
+  let message = await draftCommitMessage();
 
   if (options.dryRun) {
     printMessagePreview(message);
@@ -259,6 +355,7 @@ async function main(argv = process.argv.slice(2), overrides = {}) {
     commitArgs,
     initialMessage: message,
     editorPreference: options.editor,
+    requestNewDraft,
   });
 }
 

@@ -50,6 +50,9 @@ The tool gathers the staged diff, builds an instruction prompt (optionally enric
 - `y` – accept and run `git commit -F` with the draft
 - `n` – abort (no commit is made)
 - `e` – open the draft in `$EDITOR` (or `vi` if unset); save/close to return to the prompt
+- `+` – ask git-scribe to draft a more detailed commit message (bumps the detail level)
+- `-` – ask for a more succinct message (lowers the detail level)
+- `i` – supply new instructions (e.g., “Highlight the API rename”); they’re appended to the prompt and the model sees the rejected draft + feedback
 
 The editor is only opened when you choose `e`, matching the “editor-on-demand” requirement.
 Use `--yes` (or `-y`) only when you explicitly want to skip this approval prompt and commit immediately.

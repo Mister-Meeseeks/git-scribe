@@ -9,6 +9,7 @@ function buildPrompt({
   guidanceTruncated = false,
   detailLevel = 2,
   promptNote = null,
+  revisionHistory = [],
 }) {
   const sections = [];
 
@@ -70,6 +71,22 @@ function buildPrompt({
     emphasisLines.push(`- ${promptNote}`);
     emphasisLines.push('Apply this directly when drafting the final commit message.');
     sections.push(emphasisLines.join('\n'));
+  }
+
+  if (revisionHistory.length > 0) {
+    const feedbackBlocks = revisionHistory.map((entry, index) => {
+      return [
+        `Attempt ${index + 1} was rejected.`,
+        'Previous draft:',
+        entry.message.trim() || '(empty message)',
+        `User feedback: ${entry.reason}`,
+      ].join('\n');
+    });
+    sections.push(
+      `Earlier drafts and user feedback:\n${feedbackBlocks.join(
+        '\n\n',
+      )}\nUse this feedback to revise the next commit message without repeating the same mistakes.`,
+    );
   }
 
   return sections.join('\n\n');

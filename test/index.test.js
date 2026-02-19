@@ -19,6 +19,8 @@ function createStubEnvironment() {
     }),
     buildPrompt: (input) => {
       tracker.promptInput = input;
+      tracker.promptInputs = tracker.promptInputs || [];
+      tracker.promptInputs.push(input);
       return `PROMPT\nDetail preference: Level ${input.detailLevel}\n${input.diff}`;
     },
     resolveLLMConfig: ({ overrides: configOverrides } = {}) => {
@@ -27,6 +29,8 @@ function createStubEnvironment() {
     },
     generateCommitMessage: async ({ prompt }) => {
       tracker.promptText = prompt;
+      tracker.promptTexts = tracker.promptTexts || [];
+      tracker.promptTexts.push(prompt);
       return { message: 'Add tests' };
     },
     commitWithFile: async (cwd, filePath, commitArgs) => {
@@ -153,4 +157,57 @@ test('detail-level, prompt note, model short flags, and trace-prompt work togeth
   assert.deepStrictEqual(tracker.llmConfigOverrides, { model: 'custom/model' });
   assert.ok(consoleCapture.logs.some((line) => line.includes('Prompt sent to model')));
   assert.ok(tracker.promptText.includes('Detail preference: Level 5'));
+});
+
+test('interactive regeneration with + increases detail level and includes feedback', async () => {
+  const { overrides, tracker } = createStubEnvironment();
+  let draftCount = 0;
+  overrides.generateCommitMessage = async ({ prompt }) => {
+    tracker.promptTexts = tracker.promptTexts || [];
+    tracker.promptTexts.push(prompt);
+    draftCount += 1;
+    return { message: `Draft ${draftCount}` };
+  };
+
+  overrides.interactiveCommit = async ({ requestNewDraft, initialMessage }) => {
+    tracker.regeneratedMessage = await requestNewDraft({
+      type: 'more_detail',
+      previousMessage: initialMessage,
+    });
+  };
+
+  await main([], overrides);
+
+  assert.strictEqual(draftCount, 2, 'should generate an initial and regenerated draft');
+  assert.strictEqual(tracker.regeneratedMessage, 'Draft 2');
+  assert.ok(tracker.promptInputs);
+  assert.strictEqual(tracker.promptInputs.length, 2);
+  assert.strictEqual(tracker.promptInputs[1].detailLevel, 4);
+  assert.ok(tracker.promptInputs[1].revisionHistory);
+  assert.strictEqual(tracker.promptInputs[1].revisionHistory.length, 1);
+  assert.ok(tracker.promptInputs[1].revisionHistory[0].reason.includes('more detailed'));
+});
+
+test('interactive regeneration with custom instructions appends context and feedback', async () => {
+  const { overrides, tracker } = createStubEnvironment();
+  overrides.generateCommitMessage = async ({ prompt }) => {
+    tracker.promptTexts = tracker.promptTexts || [];
+    tracker.promptTexts.push(prompt);
+    return { message: 'Updated draft' };
+  };
+  overrides.interactiveCommit = async ({ requestNewDraft, initialMessage }) => {
+    await requestNewDraft({
+      type: 'custom',
+      previousMessage: initialMessage,
+      instructionText: 'Highlight the new API contract',
+    });
+  };
+
+  await main([], overrides);
+
+  assert.ok(Array.isArray(tracker.promptInputs));
+  assert.strictEqual(tracker.promptInputs.length, 2);
+  assert.ok(tracker.promptInputs[1].instructions.includes('Highlight the new API contract'));
+  assert.strictEqual(tracker.promptInputs[1].revisionHistory.length, 1);
+  assert.ok(tracker.promptInputs[1].revisionHistory[0].reason.includes('Highlight the new API contract'));
 });
