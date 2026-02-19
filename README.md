@@ -65,11 +65,11 @@ git-scribe [options] [-- git commit args]
 - `-B, --no-body` – request a subject-only commit message
 - `-a, --all` – include tracked unstaged changes (mirrors `git commit -a`)
 - `-L, --detail-level <1-5>` – set how detailed you want the commit (1 = terse, 5 = verbose; default 3)
-- `-P, --prompt-note <text>` – add a one-off instruction (e.g., “Mention this was a major refactor”)
+- `-P, --prompt-note <text>` – add a one-off note that directly shapes the final commit message (e.g., “Mention this was a major refactor”)
 - `-M, --model <name>` – override the model for this run without touching env vars
 - `--trace-prompt` – print the full prompt sent to the model (useful for debugging)
 - `-y, --yes` – skip the approval prompt and commit immediately (opt-in)
-- `-i, --instruction <text>` – add extra instruction(s) for the model
+- `-i, --instruction <text>` – add repeatable general instructions/context hints for the model
 - `-D, --history-depth <n>` – number of recent commit subjects to include (default 10)
 - `-G, --guidance <path>` – add a custom guidance file (repeatable)
 - `-N, --no-guidance` – skip the automatic `AGENTS.md`/`CLAUDE.md` lookup
@@ -85,7 +85,7 @@ By default, `git-scribe` includes the contents of `AGENTS.md` and `CLAUDE.md` (i
 
 ## Diff safety
 
-Only staged changes are read and sent to the model. When you pass `-a/--all`, git-scribe mirrors `git commit -a` inside a temporary index so the diff still reflects exactly what would be committed. The staged diff is truncated when it exceeds the configured character cap, and the prompt explicitly instructs the model not to invent details. Use `--detail-level` to tell the model how much explanation you want (scale 1–5) and `--prompt-note` for one-off reminders; both are sent alongside the diff, never instead of it.
+Only staged changes are read and sent to the model. When you pass `-a/--all`, git-scribe mirrors `git commit -a` inside a temporary index so the diff still reflects exactly what would be committed. The staged diff is truncated when it exceeds the configured character cap, and the prompt explicitly instructs the model not to invent details. Use `--detail-level` to tell the model how much explanation you want (scale 1–5), `-i/--instruction` for contextual hints, and `--prompt-note` when you want a final-message reminder; all are appended to the prompt, never substituted for the diff itself.
 
 ## Debugging
 

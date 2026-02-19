@@ -20,13 +20,9 @@ function buildPrompt({
     );
   }
 
-  if (promptNote) {
-    sections.push(`User note:\n${promptNote}`);
-  }
-
   if (instructions.length > 0) {
     const bullets = instructions.map((item) => `- ${item}`).join('\n');
-    sections.push(`Extra instructions from the user:\n${bullets}`);
+    sections.push(`User instructions / context hints:\n${bullets}`);
   }
 
   if (guidanceText) {
@@ -64,6 +60,14 @@ function buildPrompt({
   }
 
   sections.push(`Output rules:\n${constraints.map((item) => `- ${item}`).join('\n')}`);
+
+  if (promptNote) {
+    const emphasisLines = [];
+    emphasisLines.push('Final commit message guidance (highest priority):');
+    emphasisLines.push(`- ${promptNote}`);
+    emphasisLines.push('Apply this directly when drafting the final commit message.');
+    sections.push(emphasisLines.join('\n'));
+  }
 
   return sections.join('\n\n');
 }

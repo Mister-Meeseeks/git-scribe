@@ -1,19 +1,22 @@
 const DEFAULT_HISTORY_DEPTH = 10;
 const DEFAULT_MAX_DIFF_CHARS = 20000;
+const DEFAULT_DETAIL_LEVEL = 3;
 
-const HELP_TEXT = `Usage: git-scribe [options] [-- git commit args]
+const HELP_TEXT = `git-scribe drafts accurate commit messages from your staged changes.
+
+Usage: git-scribe [options] [-- git commit args]
 
 Options:
   -R, --dry-run             Print the generated commit message and exit
   -X, --debug               Print context metadata before prompting
   -B, --no-body             Request a subject-only commit message
   -a, --all                 Include tracked unstaged changes (like git commit -a)
-  -L, --detail-level <1-5>  Desired detail on a 1 (short) to 5 (detailed) scale (default 2)
-  -P, --prompt-note <text>  Extra note to include in the model prompt
+  -L, --detail-level <1-5>  Desired detail on a 1 (short) to 5 (detailed) scale (default ${DEFAULT_DETAIL_LEVEL})
+  -P, --prompt-note <text>  Emphasized note about the final commit message
   -M, --model <name>        Override the model without changing env vars
   --trace-prompt            Print the full prompt sent to the model
   -y, --yes                 Skip the approval prompt and commit immediately
-  -i, --instruction <text>  Additional instruction for the model (repeatable)
+  -i, --instruction <text>  General context instruction for the model (repeatable)
   -D, --history-depth <n>   Number of recent commit subjects to include (default ${DEFAULT_HISTORY_DEPTH})
   -G, --guidance <path>     Additional guidance file (repeatable)
   -N, --no-guidance         Skip automatic AGENTS.md/CLAUDE.md guidance
@@ -28,7 +31,7 @@ function parseArgs(argv) {
     debug: false,
     noBody: false,
     commitAll: false,
-    detailLevel: 3,
+    detailLevel: DEFAULT_DETAIL_LEVEL,
     instructions: [],
     autoApprove: false,
     historyDepth: DEFAULT_HISTORY_DEPTH,
@@ -181,4 +184,5 @@ module.exports = {
   HELP_TEXT,
   DEFAULT_HISTORY_DEPTH,
   DEFAULT_MAX_DIFF_CHARS,
+  DEFAULT_DETAIL_LEVEL,
 };
