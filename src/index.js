@@ -135,7 +135,7 @@ async function main(argv = process.argv.slice(2), overrides = {}) {
   const readGuidanceImpl = overrides.readGuidance || readGuidance;
   const buildPromptImpl = overrides.buildPrompt || buildPrompt;
   const resolveLLMConfigImpl =
-    overrides.resolveLLMConfig || (({ env }) => resolveLLMConfig({ env }));
+    overrides.resolveLLMConfig || (({ env, overrides: configOverrides }) => resolveLLMConfig({ env, overrides: configOverrides }));
   const generateCommitMessageImpl = overrides.generateCommitMessage || generateCommitMessage;
   const createSpinnerImpl = overrides.createSpinner || ((label) => createSpinner({ text: label }));
   const getCommitAllChangesImpl = overrides.getCommitAllChanges || getCommitAllChanges;
@@ -195,9 +195,21 @@ async function main(argv = process.argv.slice(2), overrides = {}) {
     noBody: options.noBody,
     diffTruncated,
     guidanceTruncated: guidance.truncated,
+    detailLevel: options.detailLevel,
+    promptNote: options.promptNote,
   });
 
-  const llmConfig = resolveLLMConfigImpl({ env: envVars });
+  if (options.tracePrompt) {
+    console.log('----- Prompt sent to model -----');
+    console.log(prompt);
+    console.log('--------------------------------');
+  }
+
+  const llmOverrides = {};
+  if (options.model) {
+    llmOverrides.model = options.model;
+  }
+  const llmConfig = resolveLLMConfigImpl({ env: envVars, overrides: llmOverrides });
 
   if (options.debug) {
     printDebugInfo({
@@ -211,6 +223,9 @@ async function main(argv = process.argv.slice(2), overrides = {}) {
       commitArgs,
       model: llmConfig.model,
       commitAll: options.commitAll,
+      detailLevel: options.detailLevel,
+      promptNote: options.promptNote,
+      tracePrompt: options.tracePrompt,
     });
   }
 

@@ -7,18 +7,30 @@ function buildPrompt({
   noBody = false,
   diffTruncated = false,
   guidanceTruncated = false,
+  detailLevel = 2,
+  promptNote = null,
 }) {
   const sections = [];
 
   sections.push(`You are an assistant that writes precise git commit messages. Use only the staged diff provided. Never speculate about changes that are not shown. Keep subjects under 72 characters, follow the repository style (imperative, no trailing period), and explain the why when helpful.`);
 
-  if (guidanceText) {
-    sections.push(`Repository guidance:\n${guidanceText}`);
+  if (typeof detailLevel === 'number') {
+    sections.push(
+      `Detail preference: Level ${detailLevel} out of 5 (1 = most succinct, 5 = most detailed). Match this level when determining how long and detailed of a final commit message to draft for the user.`,
+    );
+  }
+
+  if (promptNote) {
+    sections.push(`User note:\n${promptNote}`);
   }
 
   if (instructions.length > 0) {
     const bullets = instructions.map((item) => `- ${item}`).join('\n');
     sections.push(`Extra instructions from the user:\n${bullets}`);
+  }
+
+  if (guidanceText) {
+    sections.push(`Repository guidance:\n${guidanceText}`);
   }
 
   const filesBlock = stagedFiles.length > 0 ? stagedFiles.map((file) => `- ${file}`).join('\n') : 'None';
@@ -44,6 +56,11 @@ function buildPrompt({
   }
   if (guidanceTruncated) {
     constraints.push('Guidance text may be truncated; prioritize accuracy.');
+  }
+  if (typeof detailLevel === 'number') {
+    constraints.push(
+      `Ensure the level of detail matches level ${detailLevel} on the 1 (brief) to 5 (thorough) scale.`,
+    );
   }
 
   sections.push(`Output rules:\n${constraints.map((item) => `- ${item}`).join('\n')}`);

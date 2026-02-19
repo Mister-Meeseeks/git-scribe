@@ -60,17 +60,21 @@ Use `--yes` (or `-y`) only when you explicitly want to skip this approval prompt
 git-scribe [options] [-- git commit args]
 ```
 
-- `--dry-run` – print the draft message and exit
-- `--debug` – print JSON metadata about the collected context
-- `--no-body` – request a subject-only commit message
+- `-R, --dry-run` – print the draft message and exit
+- `-X, --debug` – print JSON metadata about the collected context
+- `-B, --no-body` – request a subject-only commit message
 - `-a, --all` – include tracked unstaged changes (mirrors `git commit -a`)
+- `-L, --detail-level <1-5>` – set how detailed you want the commit (1 = terse, 5 = verbose; default 3)
+- `-P, --prompt-note <text>` – add a one-off instruction (e.g., “Mention this was a major refactor”)
+- `-M, --model <name>` – override the model for this run without touching env vars
+- `--trace-prompt` – print the full prompt sent to the model (useful for debugging)
 - `-y, --yes` – skip the approval prompt and commit immediately (opt-in)
 - `-i, --instruction <text>` – add extra instruction(s) for the model
-- `--history-depth <n>` – number of recent commit subjects to include (default 10)
-- `--guidance <path>` – add a custom guidance file (repeatable)
-- `--no-guidance` – skip the automatic `AGENTS.md`/`CLAUDE.md` lookup
-- `--editor <command>` – override the editor used when choosing `e`
-- `--max-diff-chars <n>` – cap staged diff characters sent to the LLM (env var override available)
+- `-D, --history-depth <n>` – number of recent commit subjects to include (default 10)
+- `-G, --guidance <path>` – add a custom guidance file (repeatable)
+- `-N, --no-guidance` – skip the automatic `AGENTS.md`/`CLAUDE.md` lookup
+- `-E, --editor <command>` – override the editor used when choosing `e`
+- `-K, --max-diff-chars <n>` – cap staged diff characters sent to the LLM (env var override available)
 - `--` – pass everything after `--` directly to `git commit`
 
 Unknown flags/args that come before `--` automatically flow through to `git commit`, so commands like `git scribe --amend` work without extra ceremony.
@@ -81,7 +85,7 @@ By default, `git-scribe` includes the contents of `AGENTS.md` and `CLAUDE.md` (i
 
 ## Diff safety
 
-Only staged changes are read and sent to the model. When you pass `-a/--all`, git-scribe mirrors `git commit -a` inside a temporary index so the diff still reflects exactly what would be committed. The staged diff is truncated when it exceeds the configured character cap, and the prompt explicitly instructs the model not to invent details.
+Only staged changes are read and sent to the model. When you pass `-a/--all`, git-scribe mirrors `git commit -a` inside a temporary index so the diff still reflects exactly what would be committed. The staged diff is truncated when it exceeds the configured character cap, and the prompt explicitly instructs the model not to invent details. Use `--detail-level` to tell the model how much explanation you want (scale 1–5) and `--prompt-note` for one-off reminders; both are sent alongside the diff, never instead of it.
 
 ## Debugging
 

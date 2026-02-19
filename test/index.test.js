@@ -19,9 +19,12 @@ function createStubEnvironment() {
     }),
     buildPrompt: (input) => {
       tracker.promptInput = input;
-      return `PROMPT\n${input.diff}`;
+      return `PROMPT\nDetail preference: Level ${input.detailLevel}\n${input.diff}`;
     },
-    resolveLLMConfig: () => ({ apiKey: 'token', baseUrl: 'https://example.com/', model: 'demo' }),
+    resolveLLMConfig: ({ overrides: configOverrides } = {}) => {
+      tracker.llmConfigOverrides = configOverrides;
+      return { apiKey: 'token', baseUrl: 'https://example.com/', model: configOverrides?.model || 'demo' };
+    },
     generateCommitMessage: async ({ prompt }) => {
       tracker.promptText = prompt;
       return { message: 'Add tests' };
@@ -75,6 +78,8 @@ test('dry-run prints the generated message without committing', async () => {
 
   assert.ok(tracker.promptInput, 'prompt input should be provided to buildPrompt');
   assert.match(tracker.promptInput.diff, /diff --git/, 'diff should be forwarded to prompt');
+  assert.strictEqual(tracker.promptInput.detailLevel, 3);
+  assert.strictEqual(tracker.promptInput.promptNote, null);
   assert.strictEqual(tracker.interactiveCalls, undefined, 'interactive prompt should be skipped');
   assert.strictEqual(tracker.commitCalls, undefined, 'dry-run must not call git commit');
   assert.ok(
@@ -129,4 +134,23 @@ test('-a uses tracked changes snapshot and forwards the flag to git commit', asy
   assert.match(tracker.promptInput.diff, /console\.log/);
   assert.strictEqual(tracker.commitCalls.length, 1);
   assert.deepStrictEqual(tracker.commitCalls[0].commitArgs, ['-a']);
+});
+
+test('detail-level, prompt note, model short flags, and trace-prompt work together', async () => {
+  const { overrides, tracker } = createStubEnvironment();
+  const consoleCapture = captureLogs();
+  try {
+    await main(
+      ['-R', '--trace-prompt', '-L', '5', '-P', 'Mention this was a major refactor', '-M', 'custom/model'],
+      overrides,
+    );
+  } finally {
+    consoleCapture.restore();
+  }
+
+  assert.strictEqual(tracker.promptInput.detailLevel, 5);
+  assert.strictEqual(tracker.promptInput.promptNote, 'Mention this was a major refactor');
+  assert.deepStrictEqual(tracker.llmConfigOverrides, { model: 'custom/model' });
+  assert.ok(consoleCapture.logs.some((line) => line.includes('Prompt sent to model')));
+  assert.ok(tracker.promptText.includes('Detail preference: Level 5'));
 });
