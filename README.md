@@ -85,7 +85,7 @@ By default, `git-scribe` includes the contents of `AGENTS.md` and `CLAUDE.md` (i
 
 ## Diff safety
 
-Only staged changes are read and sent to the model. When you pass `-a/--all`, git-scribe mirrors `git commit -a` inside a temporary index so the diff still reflects exactly what would be committed. The staged diff is truncated when it exceeds the configured character cap, and the prompt explicitly instructs the model not to invent details. Use `--detail-level` to tell the model how much explanation you want (scale 1–5), `-i/--instruction` for contextual hints, and `--prompt-note` when you want a final-message reminder; all are appended to the prompt, never substituted for the diff itself.
+Only staged changes are read and sent to the model. When you pass `-a/--all`, git-scribe mirrors `git commit -a` inside a temporary index so the diff still reflects exactly what would be committed. The staged diff is truncated when it exceeds the configured character cap, and the prompt explicitly instructs the model not to invent details. Use `--detail-level` to tell the model how much explanation you want (scale 1–5), `-i/--instruction` for contextual hints, and `--prompt-note` when you want a final-message reminder; `--prompt-note` is echoed in the output rules so the model treats it as non-negotiable. All of these hints are appended to the prompt, never substituted for the diff itself.
 
 ## Debugging
 

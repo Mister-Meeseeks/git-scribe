@@ -58,6 +58,9 @@ function buildPrompt({
       `Ensure the level of detail matches level ${detailLevel} on the 1 (brief) to 5 (thorough) scale.`,
     );
   }
+  if (promptNote) {
+    constraints.push(`Follow this final commit message guidance exactly: ${promptNote}`);
+  }
 
   sections.push(`Output rules:\n${constraints.map((item) => `- ${item}`).join('\n')}`);
 
