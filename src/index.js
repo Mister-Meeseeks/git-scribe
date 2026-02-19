@@ -17,6 +17,7 @@ const { buildPrompt } = require('./prompt');
 const { resolveLLMConfig, generateCommitMessage } = require('./llm');
 const { openEditor, resolveEditorCommand } = require('./editor');
 const { createSpinner } = require('./spinner');
+const { version: packageVersion } = require('./version');
 
 function ensureTrailingNewline(text) {
   return text.endsWith('\n') ? text : `${text}\n`;
@@ -195,6 +196,10 @@ async function main(argv = process.argv.slice(2), overrides = {}) {
   const { options, commitArgs } = parseArgsImpl(argv);
   if (options.helpRequested) {
     console.log(HELP_TEXT);
+    return;
+  }
+  if (options.versionRequested) {
+    console.log(`git-scribe ${packageVersion}`);
     return;
   }
   applyEnvOverrides(options, envVars);

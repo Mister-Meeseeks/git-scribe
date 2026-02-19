@@ -8,25 +8,21 @@
 - A git repository with staged changes
 - Access to an OpenAI-compatible API (OpenRouter by default)
 
-## Installation
-
-Clone the repo, then install dependencies (there are no runtime dependencies, but install ensures lockfiles are created if you add any later):
+## Quickstart
 
 ```bash
+git clone https://github.com/<your-org>/git-scribe.git
+cd git-scribe
 npm install
-```
-
-Link the CLI locally or run it with `npx`:
-
-```bash
 npm link
-# or
-npx ./bin/git-scribe.js --help
+git scribe --version
 ```
 
-## Configuration
+`npm link` makes the `git scribe` executable available globally from this checkout. Re-run it whenever you pull new changes. Prefer not to link? Run `npx ./bin/git-scribe.js --help` directly instead.
 
-`git-scribe` prefers environment variables so you can keep secrets out of shell history.
+## Environment setup
+
+`git-scribe` prefers environment variables so you can keep secrets out of shell history. Set these once in your shell profile or export them before running `git scribe`.
 
 | Purpose | Primary env var | Fallback | Default |
 | --- | --- | --- | --- |
@@ -35,17 +31,27 @@ npx ./bin/git-scribe.js --help
 | Model | `SCRIBE_OPENAI_MODEL` | `OPENAI_MODEL` | `minimax/minimax-m2.5` |
 | Diff cap | `SCRIBE_MAX_DIFF_CHARS` | — | `20000` |
 
-If neither API key variable is set the CLI will abort.
-
-## Usage
-
-Stage your changes, then run:
+Example (bash/zsh):
 
 ```bash
-git scribe
+export SCRIBE_OPENAI_API_KEY="sk-live-..."
+export SCRIBE_OPENAI_BASE_URL="https://openrouter.ai/api/v1/"
+export SCRIBE_OPENAI_MODEL="minimax/minimax-m2.5"
 ```
 
-The tool gathers the staged diff, builds an instruction prompt (optionally enriched by `AGENTS.md`/`CLAUDE.md`), calls your configured LLM, and shows the draft commit message. You will always be asked what to do next:
+You can also rely on the standard `OPENAI_*` variables if you already have them configured for other tooling. Set `SCRIBE_MAX_DIFF_CHARS` when you need a higher diff cap and `SCRIBE_DEBUG_STACK=1` when you want stack traces.
+
+## Basic usage
+
+Stage changes with `git add` (or rely on `git scribe -a` if you only touch tracked files), then choose the flow you need:
+
+- `git scribe` – draft a commit from staged changes and decide whether to accept, edit, or regenerate.
+- `git scribe --dry-run` – print the proposed message without touching git; perfect for quick previews.
+- `git scribe -a --detail-level 4` – include tracked unstaged edits and nudge the model toward a more thorough explanation.
+- `git scribe --prompt-note "Write in French"` – force a particular style/tone for the final output.
+- `git scribe --history-depth 5 --guidance docs/COMMIT_STYLE.md` – share extra repository guidance and shorten commit history context.
+
+Regardless of flags, the workflow is the same: the tool gathers the diff, builds the prompt (plus any guidance), calls your configured LLM, and prints the draft for review. You will always be asked what to do next:
 
 - `y` – accept and run `git commit -F` with the draft
 - `n` – abort (no commit is made)
@@ -71,6 +77,7 @@ git-scribe [options] [-- git commit args]
 - `-P, --prompt-note <text>` – add a one-off note that directly shapes the final commit message (e.g., “Mention this was a major refactor”)
 - `-M, --model <name>` – override the model for this run without touching env vars
 - `--trace-prompt` – print the full prompt sent to the model (useful for debugging)
+- `-V, --version` – print the installed git-scribe version and exit
 - `-y, --yes` – skip the approval prompt and commit immediately (opt-in)
 - `-i, --instruction <text>` – add repeatable general instructions/context hints for the model
 - `-D, --history-depth <n>` – number of recent commit subjects to include (default 10)

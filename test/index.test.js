@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
 
 const { main } = require('../src/index');
+const { version: packageVersion } = require('../package.json');
 
 function createStubEnvironment() {
   const tracker = {};
@@ -90,6 +91,19 @@ test('dry-run prints the generated message without committing', async () => {
     consoleCapture.logs.some((line) => line.includes('Commit message')), 
     'preview output should be shown',
   );
+});
+
+test('--version prints the CLI version and exits early', async () => {
+  const { overrides, tracker } = createStubEnvironment();
+  const consoleCapture = captureLogs();
+  try {
+    await main(['--version'], overrides);
+  } finally {
+    consoleCapture.restore();
+  }
+
+  assert.ok(consoleCapture.logs.some((line) => line.includes(`git-scribe ${packageVersion}`)));
+  assert.strictEqual(tracker.promptInput, undefined, 'version flag should exit before prompting');
 });
 
 test('--yes commits immediately using the generated message', async () => {

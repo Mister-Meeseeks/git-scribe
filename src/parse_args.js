@@ -22,6 +22,7 @@ Options:
   -N, --no-guidance         Skip automatic AGENTS.md/CLAUDE.md guidance
   -E, --editor <command>    Override the editor command used for manual edits
   -K, --max-diff-chars <n>  Cap the diff characters sent to the model (default ${DEFAULT_MAX_DIFF_CHARS})
+  -V, --version             Print the current git-scribe version and exit
   -h, --help                Show this help text
   --                        Pass remaining args to git commit`;
 
@@ -43,6 +44,7 @@ function parseArgs(argv) {
     promptNote: null,
     model: null,
     tracePrompt: false,
+    versionRequested: false,
   };
   const commitArgs = [];
 
@@ -158,6 +160,10 @@ function parseArgs(argv) {
         options.model = value;
         break;
       }
+      case '--version':
+      case '-V':
+        options.versionRequested = true;
+        break;
       case '-h':
       case '--help':
         options.helpRequested = true;
