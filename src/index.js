@@ -77,7 +77,7 @@ async function interactiveCommit({
       printMessagePreview(currentMessage);
       const answer = await askQuestion(
         rl,
-        'Commit this message? (y = commit, n = abort, e = edit, + = more detail, - = less detail, i = instructions) ',
+        'Commit this message? (y) commit, (n) abort, (e) edit, (+) more detail, (-) less detail, (i) instructions: ',
       );
       if (answer === 'y') {
         await fs.writeFile(filePath, ensureTrailingNewline(currentMessage), 'utf8');
