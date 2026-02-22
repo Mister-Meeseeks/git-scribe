@@ -11,7 +11,7 @@
 ## Quickstart
 
 ```bash
-git clone https://github.com/<your-org>/git-scribe.git
+git clone https://github.com/Mister-Meeseeks/git-scribe
 cd git-scribe
 npm install
 npm link
